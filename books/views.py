@@ -4,6 +4,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
+import datetime
 
 # Create your views here.
 class BookList(generics.ListAPIView, generics.CreateAPIView):
@@ -39,14 +40,39 @@ class BookList(generics.ListAPIView, generics.CreateAPIView):
             return Response(BookSerializer(book).data)    
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-        
-class UserList(generics.ListAPIView):
+       
+class UserList(generics.ListAPIView, generics.CreateAPIView):
     queryset = Reader.objects.all()
     serializer_class = ReaderSerializer
 
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+class LoanList(generics.ListAPIView, generics.CreateAPIView):
+    queryset = Loan.objects.all()
+    serializer_class = LoanSerializer
+
+class BooksOnHand(generics.ListAPIView): # Вывести список просрочников
+    def get(self, request):
+        BooksOnHand = []
+        loans = Loan.objects.all()
+        for loan in loans:
+            if loan.returned_date is None:
+                name = Reader.objects.get(id=loan.user_id).name
+                BooksOnHand.append(name)
+        return Response(BooksOnHand)
+
+class Outstanding(generics.ListAPIView): # Вывести список просрочников
+    def get(self, request):
+        Outstanding = []
+        today_date = datetime.date.today()
+        loans = Loan.objects.all()
+        for loan in loans:
+            if loan.return_due_date <= today_date and loan.returned_date is None:
+                name = Reader.objects.get(id=loan.user_id).name
+                Outstanding.append(name)
+        return Response(Outstanding)
+
+
+
+
 
 
 class UnitListView(generics.RetrieveUpdateDestroyAPIView, generics.CreateAPIView):
