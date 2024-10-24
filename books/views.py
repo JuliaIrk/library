@@ -1,11 +1,53 @@
-from .models import Book
-from .serializers import BookSerializer
+from .models import Book, Reader, Loan
+from .serializers import BookSerializer, ReaderSerializer, LoanSerializer
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
 
 # Create your views here.
+class BookList(generics.ListAPIView, generics.CreateAPIView):
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer 
+
+    def get(self, request, *args, **kwargs): #Получение список всех книг (GET)
+        return super().get(request, *args, **kwargs)
+    
+    def post(self, request): #Добавление новой книги  (POST). Если такая книга уже есть, то изменить кол-во экземпляров
+        serializer = BookSerializer(data=request.data)
+        if serializer.is_valid(): 
+            books = Book.objects.filter(title = serializer.validated_data.get('title'), author= serializer.validated_data.get('author'))
+            if books:
+                for book in books:
+                    book.available_copies += 1
+                    book.save()
+            else:
+                book = serializer.save()
+            return Response(BookSerializer(book).data)    
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request):#Изъятие экземпляра книги (DELETE).
+        serializer = BookSerializer(data=request.data)
+        if serializer.is_valid(): 
+            books = Book.objects.filter(title = serializer.validated_data.get('title'), author= serializer.validated_data.get('author'))
+            if books is not None:
+                for book in books:
+                    book.available_copies -= 1
+                    book.save()
+            else:
+                book = serializer.delete()
+            return Response(BookSerializer(book).data)    
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+        
+class UserList(generics.ListAPIView):
+    queryset = Reader.objects.all()
+    serializer_class = ReaderSerializer
+
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
 
 class UnitListView(generics.RetrieveUpdateDestroyAPIView, generics.CreateAPIView):
     # queryset = Book.objects.all()
